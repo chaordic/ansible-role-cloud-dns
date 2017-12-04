@@ -1,0 +1,18 @@
+---
+- debug: var=i_zone
+- route53:
+    command: "{{ item.state |d('present')}}"
+    zone: "{{ i_zone.zone }}"
+    record: "{{ item.record }}"
+    type: "{{ item.type }}"
+    ttl: "{{ item.ttl |int | default(omit) }}"
+    overwrite: "{{ item.overwrite | default(omit) }}"
+    value: "{{ item.value }}"
+    alias: "{{ item.alias | default(omit) }}"
+    alias_hosted_zone_id: "{{ item.alias_hosted_zone_id | default(omit) }}"
+    identifier: "{{ item.identifier | default(omit) }}"
+    weight: "{{ item.weight |int | default(omit) }}"
+    health_check: "{{ item.health_check | default(omit) }}"
+    wait: True
+  with_items:
+    - "{{ i_zone.records }}"

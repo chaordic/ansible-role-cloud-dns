@@ -1,0 +1,7 @@
+---
+
+- include: dns-records.yml
+  with_items:
+    - "{{ route53_zones }}"
+  loop_control:
+    loop_var: i_zone
