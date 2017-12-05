@@ -5,7 +5,7 @@
     zone: "{{ i_zone.zone }}"
     record: "{{ item.record }}"
     type: "{{ item.type }}"
-    ttl: "{{ item.ttl |int | default(omit) }}"
+    ttl: "{{ item.ttl | default(omit) or int  }}"
     overwrite: "{{ item.overwrite | default(omit) }}"
     value: "{{ item.value }}"
     alias: "{{ item.alias | default(omit) }}"
