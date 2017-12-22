@@ -1,2 +1,3 @@
 ---
+env: all
 route53_zones: []
