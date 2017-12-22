@@ -40,8 +40,7 @@ Example Playbook
       GLOBAL_DNS_WEIGHT_ELB: 30
       GLOBAL_DNS_WEIGHT_CDN: 70
       pre_tasks:
-
-
+      
         - name: Find zone files
           find:
             paths: "vars/dns/{{ zone }}/"
@@ -65,7 +64,6 @@ Example Zone File
 ----------------
 ```yaml
 route53_zone_records:
-
   - record: wwww.GLOBAL_DNS_DOMAIN.
     type: CNAME
     overwrite: 'yes'
@@ -73,7 +71,7 @@ route53_zone_records:
     ttl: GLOBAL_DNS_DEFAULT_TTL
     value:
       - abc.12345678990.us-east-1.elb.amazonaws.com
-
+      
   - record: prod.GLOBAL_DNS_DOMAIN.
     type: A
     overwrite: 'yes'
