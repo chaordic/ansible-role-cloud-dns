@@ -1,0 +1,28 @@
+---
+
+- name: route53_check
+  route53_check:
+    zone: "{{ zone }}"
+    env: "{{ env }}"
+    zone_files: "{{ zone_files.files }}"
+    zone_files_env: "{{ zone_files_env.files }}"
+    global_vars: "{{ global_vars }}"
+  register: check_route53_zones
+  no_log: false
+
+- name: Mount route53_zones dict used in role
+  set_fact:
+    route53_zones:
+      - zone: "{{ zone }}"
+        state: ignore
+        records: "{{ check_route53_zones.send_to_aws | list }}"
+
+
+- name: debug check_route53_zones.aws_json
+  debug: var=check_route53_zones.aws_json
+
+- name: debug check_route53_zones.local_json
+  debug: var=check_route53_zones.local_json
+
+- name: debug diff
+  debug: msg="{{ check_route53_zones.json_diff }}"
