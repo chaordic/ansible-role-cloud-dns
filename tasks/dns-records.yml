@@ -1,5 +1,7 @@
 ---
 - debug: var=i_zone
+- name: sleep for 10 seconds and continue with play
+  wait_for: timeout=10
 - route53:
     command: "{{ item.state |d('present')}}"
     zone: "{{ i_zone.zone }}"
