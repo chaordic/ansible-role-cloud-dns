@@ -13,8 +13,8 @@ Variables
 
 - ***zone***: zone to be managed by Role.
 - ***env***:
-  * ***all***: manage all env dirs.
-  * ***{{ env }}***: Manages records only for this env.
+  * all: manage all env dirs.
+  * {{ env }}: Manages records only for this env.
 - **global_vars**: Var dict for substitution
 
 Dependencies
