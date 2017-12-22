@@ -1,6 +1,8 @@
 ---
 
-- include: dns-records.yml
+- include_tasks: check-dns-records.yml
+
+- include_tasks: dns-records.yml
   with_items:
     - "{{ route53_zones }}"
   loop_control:
