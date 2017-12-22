@@ -64,47 +64,46 @@ Example Playbook
 Example Zone File
 ----------------
 ```yaml
-    route53_zone_records:
+route53_zone_records:
 
-      - record: wwww.GLOBAL_DNS_DOMAIN.
-        type: CNAME
-        overwrite: 'yes'
-        state: create
-        ttl: GLOBAL_DNS_DEFAULT_TTL
-        value:
-          - abc.12345678990.us-east-1.elb.amazonaws.com
+  - record: wwww.GLOBAL_DNS_DOMAIN.
+    type: CNAME
+    overwrite: 'yes'
+    state: create
+    ttl: GLOBAL_DNS_DEFAULT_TTL
+    value:
+      - abc.12345678990.us-east-1.elb.amazonaws.com
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: prod-domain2.com.
-        alias: true
-        identifier: prod-elb
-        weight: GLOBAL_DNS_WEIGHT_ELB
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
+  - record: prod.GLOBAL_DNS_DOMAIN.
+    type: A
+    overwrite: 'yes'
+    state: create
+    value: prod-domain2.com.
+    alias: true
+    identifier: prod-elb
+    weight: GLOBAL_DNS_WEIGHT_ELB
+    alias_hosted_zone_id: Z00000000000A
+    alias_evaluate_target_health: false
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: cabcdefghijk1.cloudfront.net.
-        alias: true
-        identifier: prod-cloudfront
-        weight: GLOBAL_DNS_WEIGHT_CDN
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
+  - record: prod.GLOBAL_DNS_DOMAIN.
+    type: A
+    overwrite: 'yes'
+    state: create
+    value: cabcdefghijk1.cloudfront.net.
+    alias: true
+    identifier: prod-cloudfront
+    weight: GLOBAL_DNS_WEIGHT_CDN
+    alias_hosted_zone_id: Z00000000000A
+    alias_evaluate_target_health: false
 ```
 How to run playbook
 ----------------
 ```bash
-    ansible-playbook rebuild-dns.yml \
-            -i 127.0.0.1, \
-            -vvv \
-            -e "env=all" \
-            -e "zone=domain.com" 
-
+ansible-playbook rebuild-dns.yml \
+        -i 127.0.0.1, \
+        -vvv \
+        -e "env=all" \
+        -e "zone=domain.com" 
 ```
 License
 -------
