@@ -10,18 +10,16 @@ ansible 2.4 or newer.
 
 Variables
 --------------
-
-- ***zone***: zone to be managed by Role.
-- ***env***:
-  * all: manage all env dirs.
-  * {{ env }}: Manages records only for this env.
-- **global_vars**: Var dict for substitution
-
+```yaml
+zone: domain.com # zone to be managed by Role.
+env: all # Can be any subdirectory in the root of the domain directory
+global_vars: { GLOBAL_DNS_DEFAULT_TTL: 60 } # Var dict for substitution
+```
 Dependencies
 ------------
 - boto
 - boto3
-- DeepDiff 
+- deepdiff 
 
 Example Playbook
 ----------------
@@ -39,26 +37,26 @@ Example Playbook
       GLOBAL_DNS_DEFAULT_TTL: 60
       GLOBAL_DNS_WEIGHT_ELB: 30
       GLOBAL_DNS_WEIGHT_CDN: 70
-      pre_tasks:
       
-        - name: Find zone files
-          find:
-            paths: "vars/dns/{{ zone }}/"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files
+  pre_tasks:
+    - name: Find zone files
+      find:
+        paths: "vars/dns/{{ zone }}/"
+        recurse: yes
+        patterns: '*.yml'
+      no_log: "{{ var_no_log }} "
+      register: zone_files
 
-        - name: Find zone files for env
-          find:
-            paths: "vars/dns/{{ zone }}/{{ env }}"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files_env
+    - name: Find zone files for env
+      find:
+        paths: "vars/dns/{{ zone }}/{{ env }}"
+        recurse: yes
+        patterns: '*.yml'
+      no_log: "{{ var_no_log }} "
+      register: zone_files_env
 
-      roles:
-        - role: cloud-dns
+  roles:
+    - role: cloud-dns
 ```
 Example Zone File
 ----------------
