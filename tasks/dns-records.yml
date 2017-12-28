@@ -7,13 +7,13 @@
     zone: "{{ i_zone.zone }}"
     record: "{{ item.record }}"
     type: "{{ item.type }}"
-    ttl: "{{ item.ttl | default(omit) or int  }}"
+    ttl: "{{ item.ttl | default(omit) }}"
     overwrite: "{{ item.overwrite | default(omit) }}"
     value: "{{ item.value }}"
     alias: "{{ item.alias | default(omit) }}"
     alias_hosted_zone_id: "{{ item.alias_hosted_zone_id | default(omit) }}"
     identifier: "{{ item.identifier | default(omit) }}"
-    weight: "{{ item.weight | default(omit) or int  }}"
+    weight: "{{ item.weight | default(omit) }}"
     health_check: "{{ item.health_check | default(omit) }}"
     wait: True
   with_items:
