@@ -248,26 +248,28 @@ def mk_diff(env,var_a,var_b,env_list=None):
     change_new=[]
     change_old=[]
     diff_vars=DeepDiff(var_a, var_b, ignore_order=True)
-    for record in diff_vars['iterable_item_added']:
-        changeid=record
-        r53_record=dict(OrderedDict(diff_vars['iterable_item_added'][changeid]))
+    if 'iterable_item_added' in diff_vars.keys():
+        for record in diff_vars['iterable_item_added']:
+            changeid=record
+            r53_record=dict(OrderedDict(diff_vars['iterable_item_added'][changeid]))
 
-        if r53_record['record'] in local_records_names:
-            if env == 'all' or r53_record['record'] in env_list:
-                change_old.append(r53_record)
-        else:
-            output['diff']['manual_changes'].append(r53_record)
-    for record in diff_vars['iterable_item_removed']:
-        changeid=record
-        r53_record=dict(OrderedDict(diff_vars['iterable_item_removed'][changeid]))
-        if r53_record['record'] in aws_records_names:
-            if env == 'all' or r53_record['record'] in env_list:
-                change_new.append(r53_record)
-                output['send_to_aws'].append(r53_record)
-        else:
-            if env == 'all' or r53_record['record'] in env_list:
-                output['diff']['new_records'].append(r53_record)
-                output['send_to_aws'].append(r53_record)
+            if r53_record['record'] in local_records_names:
+                if env == 'all' or r53_record['record'] in env_list:
+                    change_old.append(r53_record)
+            else:
+                output['diff']['manual_changes'].append(r53_record)
+    if 'iterable_item_removed' in diff_vars.keys():
+        for record in diff_vars['iterable_item_removed']:
+            changeid=record
+            r53_record=dict(OrderedDict(diff_vars['iterable_item_removed'][changeid]))
+            if r53_record['record'] in aws_records_names:
+                if env == 'all' or r53_record['record'] in env_list:
+                    change_new.append(r53_record)
+                    output['send_to_aws'].append(r53_record)
+            else:
+                if env == 'all' or r53_record['record'] in env_list:
+                    output['diff']['new_records'].append(r53_record)
+                    output['send_to_aws'].append(r53_record)
     if change_new != [] or change_old != []:
         output['diff']['changes'].append({'new': change_new })
         output['diff']['changes'].append({'old': change_old })
@@ -289,7 +291,7 @@ def run_module():
         changed=False,
         local_json='',
         aws_json='',
-        json_diff={} 
+        json_diff={}
     )
 
     module = AnsibleModule(
