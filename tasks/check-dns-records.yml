@@ -8,7 +8,7 @@
     zone_files_env: "{{ zone_files_env.files }}"
     global_vars: "{{ global_vars }}"
   register: check_route53_zones
-  no_log: false
+  no_log: true
 
 - name: Mount route53_zones dict used in role
   set_fact:
