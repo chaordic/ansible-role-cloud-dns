@@ -18,3 +18,7 @@
     wait: True
   with_items:
     - "{{ i_zone.records }}"
+
+- fail:
+    msg: "There are unversioned security groups"
+  when: check_route53_zones.json_diff.manual_changes | length != 0
