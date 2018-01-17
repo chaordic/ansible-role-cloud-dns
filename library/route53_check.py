@@ -240,7 +240,6 @@ def get_aws_records(zone):
 
 
 def mk_diff(env, var_a, var_b, env_list=None):
-    # print(json.dumps(env_list,indent=4))
     output = {}
     output['diff'] = {}
     output['diff']['changes'] = []
@@ -333,9 +332,7 @@ def run_module():
     result['json_diff'] = diff_r53_zones['diff']
     result['send_to_aws'] = diff_r53_zones['send_to_aws']
     result['hosted_zone_id'] = hosted_zone_id
-    result['private_zone'] = private_zone
-
-    # print(json.dumps(result,indent=4))
+    result['private_zone'] = private_zon
 
     module.exit_json(**result)
 
