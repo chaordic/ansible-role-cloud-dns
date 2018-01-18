@@ -115,6 +115,14 @@ r53 = boto3.client('route53')
 
 
 def read_files(env, find_output, find_output_env):
+    """ Read files in find_output and  find_output_env to return a dict like this example:
+    {
+    hosted_zone_id: A1BC23DEF45GHI
+    private_zone: false
+    all_records: [...] # List of records
+    env_records: [...]# List of records names to limit what is sent to amazon
+    }
+    """
     output = {}
     output['all_records'] = []
     output['env_records'] = []
@@ -132,11 +140,11 @@ def read_files(env, find_output, find_output_env):
                 output['all_records'].append(record)
                 if env != 'all' and file['path'] in env_files_list:
                     output['env_records'].append(record['record'])
-
     return(output)
 
 
 def expand_global_vars(records, global_vars):
+    """Replace strings in records based in global_vars"""
     records = json.dumps(records)
     for key, value in global_vars.items():
         records = records.replace(key, str(value))
@@ -146,6 +154,8 @@ def expand_global_vars(records, global_vars):
 
 
 def format_records(records):
+    """ Create global local_records_names for checks in others functions and
+    format the records because after replacing the strings some values may come with incorrect type"""
     global local_records_names
     local_records_names = []
     new_records = []
@@ -178,6 +188,8 @@ def format_records(records):
 
 
 def aws_format_records(records):
+    """ Create global aws_records_names for checks in others functions and
+    format the records to ansible format"""
     global aws_records_names
     aws_records_names = []
     aws_records = []
@@ -215,6 +227,7 @@ def aws_format_records(records):
 
 
 def get_zone_records(zone_id, next_record=None):
+    """ Get records from AWS"""
     if(next_record):
         response = r53.list_resource_record_sets(
             HostedZoneId=zone_id,
@@ -231,12 +244,6 @@ def get_zone_records(zone_id, next_record=None):
              response['NextRecordType'])
         )
     return zone_records
-
-
-def get_aws_records(zone):
-    zone_records = get_zone_records(zone)
-    zone_records = aws_format_records(zone_records)
-    return(zone_records)
 
 
 def mk_diff(env, var_a, var_b, env_list=None):
@@ -274,8 +281,8 @@ def mk_diff(env, var_a, var_b, env_list=None):
                     output['diff']['new_records'].append(r53_record)
                     output['send_to_aws'].append(r53_record)
     if change_new != [] or change_old != []:
-        output['diff']['changes'].append({'new': change_new})
-        output['diff']['changes'].append({'old': change_old})
+        output['diff']['changes'].append({'after': change_new})
+        output['diff']['changes'].append({'before': change_old})
     output = json.dumps(output)
     return(output)
 
@@ -319,8 +326,9 @@ def run_module():
     # hosted_zone_id
     hosted_zone_id = from_files_records['hosted_zone_id']
 
-    # Records list from aws
-    aws_r53_zone = get_aws_records(zone=hosted_zone_id)
+    # Get records from aws and format it 
+    aws_r53_zone= get_zone_records(hosted_zone_id)
+    aws_r53_zone = aws_format_records(aws_r53_zone)
 
     # Diff between local and aws
     diff_r53_zones = json.loads(mk_diff(
@@ -332,7 +340,7 @@ def run_module():
     result['json_diff'] = diff_r53_zones['diff']
     result['send_to_aws'] = diff_r53_zones['send_to_aws']
     result['hosted_zone_id'] = hosted_zone_id
-    result['private_zone'] = private_zon
+    result['private_zone'] = private_zone
 
     module.exit_json(**result)
 
