@@ -25,5 +25,5 @@
     - "{{ i_zone.records }}"
 
 - fail:
-    msg: "There are unversioned security groups"
+    msg: "There are unversioned records"
   when: check_route53_zones.json_diff.manual_changes | length != 0
