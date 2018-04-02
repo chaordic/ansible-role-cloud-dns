@@ -113,6 +113,8 @@ from collections import OrderedDict
 from deepdiff import DeepDiff
 r53 = boto3.client('route53')
 
+def jprint(data):
+    print(json.dumps(data,indent=4))
 
 def read_files(env, find_output, find_output_env):
     """ Read files in find_output and  find_output_env to return a dict like this example:
@@ -164,7 +166,13 @@ def format_records(records):
         new_record['record'] = record['record']
         local_records_names.append(record['record'])
         new_record['type'] = record['type']
-        new_record['overwrite'] = record['overwrite']
+        if record['overwrite'] == True:
+            new_record['overwrite'] = 'yes'
+        elif record['overwrite'] == False:
+            new_record['overwrite'] = 'no'
+        else:
+            new_record['overwrite'] = record['overwrite']
+
         new_record['state'] = record['state']
         if 'identifier' in record.keys():
             new_record['identifier'] = record['identifier']
@@ -176,12 +184,18 @@ def format_records(records):
         if 'health_check' in record.keys():
             new_record['health_check'] = record['health_check']
         if 'alias' in record.keys():
-            new_record['value'] = record['value']
+            if isinstance(record['value'], list):
+                new_record['value'] = record['value']
+            else:
+                new_record['value'].append(record['value'])
             new_record['alias'] = record['alias']
             new_record['alias_hosted_zone_id'] = record['alias_hosted_zone_id']
             new_record['alias_evaluate_target_health'] = record['alias_evaluate_target_health']
         else:
-            new_record['value'] = sorted(record['value'])
+            if isinstance(record['value'], list):
+                new_record['value'] = record['value']
+            else:
+                new_record['value'].append(record['value'])
         new_records.append(new_record)
     new_records = sorted(new_records)
     return(new_records)
@@ -214,7 +228,6 @@ def aws_format_records(records):
         if 'ResourceRecords' in record.keys():
             for ResourceRecords in record['ResourceRecords']:
                 aws_record['value'].append(ResourceRecords['Value'])
-                aws_record['value'] = sorted(aws_record['value'])
         elif 'AliasTarget' in record.keys():
             aws_record['value'] = record['AliasTarget']['DNSName']
             aws_record['alias'] = True
