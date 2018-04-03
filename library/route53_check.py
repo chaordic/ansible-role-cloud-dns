@@ -229,7 +229,10 @@ def aws_format_records(records):
             for ResourceRecords in record['ResourceRecords']:
                 aws_record['value'].append(ResourceRecords['Value'])
         elif 'AliasTarget' in record.keys():
-            aws_record['value'] = record['AliasTarget']['DNSName']
+            if isinstance(record['AliasTarget']['DNSName'], list):
+                aws_record['value'] = record['AliasTarget']['DNSName']
+            else:
+                aws_record['value'].append(record['AliasTarget']['DNSName'])
             aws_record['alias'] = True
             aws_record['alias_hosted_zone_id'] = record['AliasTarget']['HostedZoneId']
             aws_record['alias_evaluate_target_health'] = record['AliasTarget']['EvaluateTargetHealth']
