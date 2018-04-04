@@ -113,47 +113,6 @@ from collections import OrderedDict
 from deepdiff import DeepDiff
 r53 = boto3.client('route53')
 
-def jprint(data):
-    print(json.dumps(data,indent=4))
-
-def read_files(env, find_output, find_output_env):
-    """ Read files in find_output and  find_output_env to return a dict like this example:
-    {
-    hosted_zone_id: A1BC23DEF45GHI
-    private_zone: false
-    all_records: [...] # List of records
-    env_records: [...]# List of records names to limit what is sent to amazon
-    }
-    """
-    output = {}
-    output['all_records'] = []
-    output['env_records'] = []
-    env_files_list = []
-    for file_env in find_output_env:
-        env_files_list.append(file_env['path'])
-    for file in find_output:
-        with open(file['path'], 'r') as infile:
-            route53_zone_records_list = yaml.load(infile)
-            if 'hosted_zone_id' in route53_zone_records_list:
-                output['hosted_zone_id'] = route53_zone_records_list['hosted_zone_id']
-            if 'private_zone' in route53_zone_records_list:
-                output['private_zone'] = route53_zone_records_list['private_zone']
-            for record in route53_zone_records_list['route53_zone_records']:
-                output['all_records'].append(record)
-                if env != 'all' and file['path'] in env_files_list:
-                    output['env_records'].append(record['record'])
-    return(output)
-
-
-def expand_global_vars(records, global_vars):
-    """Replace strings in records based in global_vars"""
-    records = json.dumps(records)
-    for key, value in global_vars.items():
-        records = records.replace(key, str(value))
-
-    output = json.loads(records)
-    return(output)
-
 
 def format_records(records):
     """ Create global local_records_names for checks in others functions and
@@ -262,7 +221,7 @@ def get_zone_records(zone_id, next_record=None):
     return zone_records
 
 
-def mk_diff(env, var_a, var_b, env_list=None):
+def mk_diff(var_a, var_b, env_list=None):
     output = {}
     output['diff'] = {}
     output['diff']['changes'] = []
@@ -279,7 +238,7 @@ def mk_diff(env, var_a, var_b, env_list=None):
                 diff_vars['iterable_item_added'][changeid]))
 
             if r53_record['record'] in local_records_names:
-                if env == 'all' or r53_record['record'] in env_list:
+                if env_list == [] or r53_record['record'] in env_list:
                     change_old.append(r53_record)
             else:
                 output['diff']['manual_changes'].append(r53_record)
@@ -289,11 +248,11 @@ def mk_diff(env, var_a, var_b, env_list=None):
             r53_record = dict(OrderedDict(
                 diff_vars['iterable_item_removed'][changeid]))
             if r53_record['record'] in aws_records_names:
-                if env == 'all' or r53_record['record'] in env_list:
+                if env_list == [] or r53_record['record'] in env_list:
                     change_new.append(r53_record)
                     output['send_to_aws'].append(r53_record)
             else:
-                if env == 'all' or r53_record['record'] in env_list:
+                if env_list == [] or r53_record['record'] in env_list:
                     output['diff']['new_records'].append(r53_record)
                     output['send_to_aws'].append(r53_record)
     if change_new != [] or change_old != []:
@@ -306,10 +265,10 @@ def mk_diff(env, var_a, var_b, env_list=None):
 def run_module():
 
     module_args = dict(
-        env=dict(type='str', required=True),
-        zone_files=dict(type='list', required=True),
-        zone_files_env=dict(type='list', Default=[]),
-        global_vars=dict(type='dict', required=True)
+        hosted_zone_id=dict(type='str', required=True),
+        private_zone=dict(type='bool', Default=False),
+        zone_all_records=dict(type='list', required=True),
+        zone_records_filter=dict(type='list', Default=[])
     )
 
     result = dict(
@@ -324,31 +283,21 @@ def run_module():
         supports_check_mode=True
     )
 
-    env = module.params['env']
-    zone_files = module.params['zone_files']
-    zone_files_env = module.params['zone_files_env']
-    global_vars = module.params['global_vars']
-
-    # Records list for all records
-    from_files_records = read_files(env, zone_files, zone_files_env)
-    from_files_records = expand_global_vars(from_files_records, global_vars)
+    hosted_zone_id = module.params['hosted_zone_id']
+    private_zone = module.params['private_zone']
+    zone_all_records = module.params['zone_all_records']
+    zone_records_filter = module.params['zone_records_filter']
 
     # Records list from local files
-    local_r53_zone = format_records(from_files_records['all_records'])
+    local_r53_zone = format_records(zone_all_records)
 
-    # private_zone
-    private_zone = from_files_records['private_zone']
-
-    # hosted_zone_id
-    hosted_zone_id = from_files_records['hosted_zone_id']
-
-    # Get records from aws and format it 
-    aws_r53_zone= get_zone_records(hosted_zone_id)
+    # Get records from aws and format it
+    aws_r53_zone = get_zone_records(hosted_zone_id)
     aws_r53_zone = aws_format_records(aws_r53_zone)
 
     # Diff between local and aws
     diff_r53_zones = json.loads(mk_diff(
-        env, local_r53_zone, aws_r53_zone, env_list=from_files_records['env_records']))
+        local_r53_zone, aws_r53_zone, env_list=zone_records_filter))
 
     # Record list to r53-record.yml
     result['local_json'] = local_r53_zone
