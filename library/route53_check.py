@@ -143,18 +143,22 @@ def format_records(records):
         if 'health_check' in record.keys():
             new_record['health_check'] = record['health_check']
         if 'alias' in record.keys():
+            if isinstance(record['value'], list) and len(record['value']) == 1:
+                new_record['value'] = record['value'][0]
             if isinstance(record['value'], list):
                 new_record['value'] = record['value']
             else:
-                new_record['value'].append(record['value'])
+                new_record['value'] = record['value']
             new_record['alias'] = record['alias']
             new_record['alias_hosted_zone_id'] = record['alias_hosted_zone_id']
             new_record['alias_evaluate_target_health'] = record['alias_evaluate_target_health']
         else:
-            if isinstance(record['value'], list):
+            if isinstance(record['value'], list) and len(record['value']) == 1:
+                new_record['value'] = record['value'][0]
+            elif isinstance(record['value'], list):
                 new_record['value'] = record['value']
             else:
-                new_record['value'].append(record['value'])
+                new_record['value'] = record['value']
         new_records.append(new_record)
     new_records = sorted(new_records)
     return(new_records)
@@ -188,10 +192,12 @@ def aws_format_records(records):
             for ResourceRecords in record['ResourceRecords']:
                 aws_record['value'].append(ResourceRecords['Value'])
         elif 'AliasTarget' in record.keys():
-            if isinstance(record['AliasTarget']['DNSName'], list):
+            if isinstance(record['AliasTarget']['DNSName'], list) and len(record['AliasTarget']['DNSName']) == 1:
+                aws_record['value'] = record['AliasTarget']['DNSName'][0]
+            elif isinstance(record['AliasTarget']['DNSName'], list):
                 aws_record['value'] = record['AliasTarget']['DNSName']
             else:
-                aws_record['value'].append(record['AliasTarget']['DNSName'])
+                aws_record['value'] = record['AliasTarget']['DNSName']
             aws_record['alias'] = True
             aws_record['alias_hosted_zone_id'] = record['AliasTarget']['HostedZoneId']
             aws_record['alias_evaluate_target_health'] = record['AliasTarget']['EvaluateTargetHealth']
