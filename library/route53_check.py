@@ -191,13 +191,10 @@ def aws_format_records(records):
         if 'ResourceRecords' in record.keys():
             for ResourceRecords in record['ResourceRecords']:
                 aws_record['value'].append(ResourceRecords['Value'])
+        if len(aws_record['value']) == 1:
+            aws_record['value'] = aws_record['value'][0]
         elif 'AliasTarget' in record.keys():
-            if isinstance(record['AliasTarget']['DNSName'], list) and len(record['AliasTarget']['DNSName']) == 1:
-                aws_record['value'] = record['AliasTarget']['DNSName'][0]
-            elif isinstance(record['AliasTarget']['DNSName'], list):
-                aws_record['value'] = record['AliasTarget']['DNSName']
-            else:
-                aws_record['value'] = record['AliasTarget']['DNSName']
+            aws_record['value'] = record['AliasTarget']['DNSName']
             aws_record['alias'] = True
             aws_record['alias_hosted_zone_id'] = record['AliasTarget']['HostedZoneId']
             aws_record['alias_evaluate_target_health'] = record['AliasTarget']['EvaluateTargetHealth']
