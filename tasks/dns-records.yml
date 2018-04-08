@@ -20,7 +20,7 @@
     health_check: "{{ item.health_check | default(omit) }}"
     private_zone: "{{ check_route53_zones.private_zone }}"
     hosted_zone_id: "{{ check_route53_zones.hosted_zone_id }}"
-    wait: True
+    wait: False
   with_items:
     - "{{ i_zone.records }}"
 
