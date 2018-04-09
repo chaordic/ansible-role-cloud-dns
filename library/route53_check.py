@@ -7,16 +7,14 @@ ANSIBLE_METADATA = {
 }
 
 DOCUMENTATION = '''
+This module compare a route53 zone with vars receveid in var zone_all_records and
+return a dict with changed records to be used in route53 module.
+
 args:
-
-**zone** : zone to be managed by Role.
-**env** :
-  all: manage all env dirs.
-  {{ env }}: Manages records only for this env.
-**zone_files**: Root dir of records
-**zone_files_env**: Subdir of records for current env
-**global_vars**: Var dict for substitution
-
+    hosted_zone_id: Hosted zone id
+    private_zone: Default false
+    zone_all_records: list with all zone records
+    zone_records_filter: list of records names to be changed
 '''
 
 EXAMPLES = '''
@@ -28,81 +26,48 @@ Example Playbook
       connection: local
       gather_facts: true
 
-      vars:
-        var_no_log: true
-        global_vars:
-          GLOBAL_DNS_DOMAIN: domain.com
-          GLOBAL_DNS_INTERNAL_DOMAIN: domain.internal
-          GLOBAL_DNS_DEFAULT_TTL: 60
-          GLOBAL_DNS_WEIGHT_ELB: 30
-          GLOBAL_DNS_WEIGHT_CDN: 70
-
-      pre_tasks:
-
-
-        - name: Find zone files
-          find:
-            paths: "vars/dns/{{ zone }}/"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files
-
-        - name: Find zone files for env
-          find:
-            paths: "vars/dns/{{ zone }}/{{ env }}"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files_env
-
       roles:
         - role: cloud-dns
+          vars:
+            hosted_zone_id: A1BC23DEF45GHI
+            private_zone: false
+            zone: example.com.
 
-Example Zone File
-----------------
+            zone_all_records:
+              - record: wwww.example.com.
+                type: CNAME
+                overwrite: 'yes'
+                state: create
+                ttl: 60
+                value:
+                  - abc.12345678990.us-east-1.elb.amazonaws.com
 
-    hosted_zone_id: A1BC23DEF45GHI
-    private_zone: false
-    route53_zone_records:
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: prod-domain2.com.
+                alias: true
+                identifier: prod-elb
+                weight: GLOBAL_DNS_WEIGHT_ELB
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
 
-      - record: wwww.GLOBAL_DNS_DOMAIN.
-        type: CNAME
-        overwrite: 'yes'
-        state: create
-        ttl: GLOBAL_DNS_DEFAULT_TTL
-        value:
-          - abc.12345678990.us-east-1.elb.amazonaws.com
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: cabcdefghijk1.cloudfront.net.
+                alias: true
+                identifier: prod-cloudfront
+                weight: 100
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: prod-domain2.com.
-        alias: true
-        identifier: prod-elb
-        weight: GLOBAL_DNS_WEIGHT_ELB
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
+            zone_records_filter:
+              - prod.example.com.
+              - prod.example.com.
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: cabcdefghijk1.cloudfront.net.
-        alias: true
-        identifier: prod-cloudfront
-        weight: GLOBAL_DNS_WEIGHT_CDN
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
-
-How to run playbook
-----------------
-    ansible-playbook rebuild-dns.yml \
-            -i 127.0.0.1, \
-            -vvv \
-            -e "env=all" \
-            -e "zone=domain.com" 
 '''
 
 from ansible.module_utils.basic import AnsibleModule
