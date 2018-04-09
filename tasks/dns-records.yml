@@ -41,4 +41,12 @@
   include: notify.yml
   vars:
     notify_message: "{{ route53_output | to_nice_json }}"
-  when: route53_output.failed == true
+  when: route53_output.failed is defined and route53_output.failed == true
+
+- name: notify successfully completed
+  include: notify.yml
+  vars:
+    notify_message: "rebuild-dns for zone {{ zone }} successfully completed"
+  when: >
+    route53_output.failed is not defined and (check_route53_zones.json_diff.manual_changes | length != 0 or
+    check_route53_zones.send_to_aws | length != 0)
