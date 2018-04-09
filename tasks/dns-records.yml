@@ -1,9 +1,20 @@
 ---
-- debug: var=i_zone
+- name: debug changes
+  debug: var=i_zone
 
-- name: sleep for 10 seconds and continue with play
-  wait_for: timeout=10
+- name: Confirm changes
+  pause:
+    prompt: 'Please review the changes in the last task and press enter to continue'
+  when: check_route53_zones.send_to_aws | length != 0 and force | default("false") != "true"
   no_log: true
+
+- name: notify
+  include: notify.yml
+  vars:
+    notify_message: "{{ check_route53_zones.json_diff | to_nice_json }}"
+  when: >
+    check_route53_zones.json_diff.manual_changes | length != 0 or
+    check_route53_zones.send_to_aws | length != 0
 
 - route53:
     command: "{{ item.state |d('present')}}"
@@ -21,9 +32,13 @@
     private_zone: "{{ check_route53_zones.private_zone }}"
     hosted_zone_id: "{{ check_route53_zones.hosted_zone_id }}"
     wait: False
+  register: route53_output
+  ignore_errors: yes
   with_items:
     - "{{ i_zone.records }}"
 
-- fail:
-    msg: "There are unversioned records"
-  when: check_route53_zones.json_diff.manual_changes | length != 0
+- name: notify errros
+  include: notify.yml
+  vars:
+    notify_message: "{{ route53_output | to_nice_json }}"
+  when: route53_output.failed == true

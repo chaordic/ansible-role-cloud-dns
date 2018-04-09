@@ -1,0 +1,16 @@
+---
+
+- name: notify Hipchat
+  hipchat:
+    api: https://api.hipchat.com/v2/
+    token: "{{ hitchat_access_token }}"
+    room: "{{ hitchat_room }}"
+    msg: "/code {{ notify_message }}"
+  when: notifyHipchat is defined
+
+- name: notify Slack
+  slack:
+    token: "{{ slack_token }}"
+    channel: "{{ slack_channel }}"
+    msg: "{{ notify_message }}"
+  when: notifySlack is defined
