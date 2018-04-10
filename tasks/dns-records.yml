@@ -24,9 +24,8 @@
   vars:
     notify_message: "{{ notify_message_inversioned | default() + notify_message_changes | default() + check_route53_zones.json_diff | to_nice_json }}"
     notify_color: "{{ notify_color_warning | default('yellow') }}"
-  when: >
-    check_route53_zones.json_diff.manual_changes | length != 0 or
-    check_route53_zones.send_to_aws | length != 0
+  when: check_route53_zones.json_diff.manual_changes | length != 0 or
+        check_route53_zones.send_to_aws | length != 0
 
 - route53:
     command: "{{ item.state |d('present')}}"
