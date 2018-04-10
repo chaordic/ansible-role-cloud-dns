@@ -90,7 +90,6 @@ Example Playbook
 
             zone_records_filter:
               - prod.example.com.
-              - prod.example.com.
 ```
 License
 -------
