@@ -4,3 +4,7 @@ route53_zones: []
 var_no_log: true
 notifyHipchat: false
 notifySlack: false
+slack_colors:
+  red: danger
+  green: good
+  yellow: warning

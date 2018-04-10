@@ -13,5 +13,6 @@
   slack:
     token: "{{ slack_token }}"
     channel: "{{ slack_channel }}"
+    color: "{{ slack_colors[notify_color] }}"
     msg: "{{ notify_message }}"
   when: notifySlack == true
