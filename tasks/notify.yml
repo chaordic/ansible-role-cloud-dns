@@ -7,11 +7,11 @@
     room: "{{ hitchat_room }}"
     msg: "/code {{ notify_message }}"
     color: "{{ notify_color }}"
-  when: notifyHipchat is defined
+  when: notifyHipchat == true
 
 - name: notify Slack
   slack:
     token: "{{ slack_token }}"
     channel: "{{ slack_channel }}"
     msg: "{{ notify_message }}"
-  when: notifySlack is defined
+  when: notifySlack == true
