@@ -6,6 +6,7 @@
     token: "{{ hitchat_access_token }}"
     room: "{{ hitchat_room }}"
     msg: "/code {{ notify_message }}"
+    color: "{{ notify_color }}"
   when: notifyHipchat is defined
 
 - name: notify Slack

@@ -8,10 +8,22 @@
   when: check_route53_zones.send_to_aws | length != 0 and force | default("false") != "true"
   no_log: true
 
-- name: notify
+- name: var notify unversioned records
+  set_fact:
+    notify_message_inversioned: "{{ ansible_user }}: there are unversioned records for zone {{ zone }}\n"
+    notify_color_warning: red
+  when: check_route53_zones.json_diff.manual_changes | length != 0 
+
+- name: var notify updated records
+  set_fact:
+    notify_message_changes: "{{ ansible_user }}: there are updated records for zone {{ zone }}\n"
+  when: check_route53_zones.send_to_aws | length != 0 
+
+- name: notify changes
   include: notify.yml
   vars:
-    notify_message: "{{ check_route53_zones.json_diff | to_nice_json }}"
+    notify_message: "{{ notify_message_inversioned | default() + notify_message_changes | default() + check_route53_zones.json_diff | to_nice_json }}"
+    notify_color: "{{ notify_color_warning | default('yellow') }}"
   when: >
     check_route53_zones.json_diff.manual_changes | length != 0 or
     check_route53_zones.send_to_aws | length != 0
@@ -41,12 +53,12 @@
   include: notify.yml
   vars:
     notify_message: "{{ route53_output | to_nice_json }}"
+    notify_color: red
   when: route53_output.failed is defined and route53_output.failed == true
 
 - name: notify successfully completed
   include: notify.yml
   vars:
-    notify_message: "rebuild-dns for zone {{ zone }} successfully completed"
-  when: >
-    route53_output.failed is not defined and (check_route53_zones.json_diff.manual_changes | length != 0 or
-    check_route53_zones.send_to_aws | length != 0)
+    notify_message: "{{ ansible_user }}: rebuild for zone {{ zone }} successfully completed"
+    notify_color: green
+  when: route53_output.failed is not defined and check_route53_zones.send_to_aws | length != 0
