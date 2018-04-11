@@ -24,13 +24,11 @@ zone: zone name
 zone_all_records: list with all zone records
 zone_records_filter: list of records names to be changed
 
-# Slack vars
-slack_token: slack token
-slack_channel: slack channel
-
-# Hipchat vars
-hitchat_access_token: hipchat access token
-hitchat_room: hipchat room
+# Notify vars
+notify_to:
+  service: slack/hipchat
+  room: room name to hipchat
+  channel: channel name to slack
 
 ```
 Dependencies

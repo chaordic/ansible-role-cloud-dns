@@ -7,13 +7,13 @@ ANSIBLE_METADATA = {
 }
 
 DOCUMENTATION = '''
-This module compare a route53 zone with vars receveid in var zone_all_records and
+This module compare a route53 zone with vars received in var zone_records and
 return a dict with changed records to be used in route53 module.
 
 args:
     hosted_zone_id: Hosted zone id
     private_zone: Default false
-    zone_all_records: list with all zone records
+    zone_records: list with all zone records
     zone_records_filter: list of records names to be changed
 '''
 
@@ -31,9 +31,9 @@ Example Playbook
           vars:
             hosted_zone_id: A1BC23DEF45GHI
             private_zone: false
-            zone: example.com.
+            zone_name: example.com.
 
-            zone_all_records:
+            zone_records:
               - record: wwww.example.com.
                 type: CNAME
                 overwrite: 'yes'
@@ -66,7 +66,6 @@ Example Playbook
 
             zone_records_filter:
               - prod.example.com.
-              - prod.example.com.
 
 '''
 
@@ -80,15 +79,15 @@ r53 = boto3.client('route53')
 
 
 def format_records(records):
-    """ Create global local_records_names for checks in others functions and
+    """ Create global local_record_names for checks in others functions and
     format the records because after replacing the strings some values may come with incorrect type"""
-    global local_records_names
-    local_records_names = []
+    global local_record_names
+    local_record_names = []
     new_records = []
     for record in records:
         new_record = OrderedDict()
         new_record['record'] = record['record']
-        local_records_names.append(record['record'])
+        local_record_names.append(record['record'])
         new_record['type'] = record['type']
         if record['overwrite'] == True:
             new_record['overwrite'] = 'yes'
@@ -196,8 +195,8 @@ def mk_diff(var_a, var_b, env_list=None):
     output['diff']['new_records'] = []
     output['diff']['manual_changes'] = []
     output['send_to_aws'] = []
-    change_new = []
-    change_old = []
+    change_after = []
+    change_before = []
     diff_vars = DeepDiff(var_a, var_b, ignore_order=True)
     if 'iterable_item_added' in diff_vars.keys():
         for record in diff_vars['iterable_item_added']:
@@ -205,9 +204,9 @@ def mk_diff(var_a, var_b, env_list=None):
             r53_record = dict(OrderedDict(
                 diff_vars['iterable_item_added'][changeid]))
 
-            if r53_record['record'] in local_records_names:
+            if r53_record['record'] in local_record_names:
                 if env_list == [] or r53_record['record'] in env_list:
-                    change_old.append(r53_record)
+                    change_before.append(r53_record)
             else:
                 output['diff']['manual_changes'].append(r53_record)
     if 'iterable_item_removed' in diff_vars.keys():
@@ -217,15 +216,15 @@ def mk_diff(var_a, var_b, env_list=None):
                 diff_vars['iterable_item_removed'][changeid]))
             if r53_record['record'] in aws_records_names:
                 if env_list == [] or r53_record['record'] in env_list:
-                    change_new.append(r53_record)
+                    change_after.append(r53_record)
                     output['send_to_aws'].append(r53_record)
             else:
                 if env_list == [] or r53_record['record'] in env_list:
                     output['diff']['new_records'].append(r53_record)
                     output['send_to_aws'].append(r53_record)
-    if change_new != [] or change_old != []:
-        output['diff']['changes'].append({'after': change_new})
-        output['diff']['changes'].append({'before': change_old})
+    if change_after != [] or change_before != []:
+        output['diff']['changes'].append({'after': change_after})
+        output['diff']['changes'].append({'before': change_before})
     output = json.dumps(output)
     return(output)
 
@@ -235,7 +234,7 @@ def run_module():
     module_args = dict(
         hosted_zone_id=dict(type='str', required=True),
         private_zone=dict(type='bool', Default=False),
-        zone_all_records=dict(type='list', required=True),
+        zone_records=dict(type='list', required=True),
         zone_records_filter=dict(type='list', Default=[])
     )
 
@@ -253,11 +252,11 @@ def run_module():
 
     hosted_zone_id = module.params['hosted_zone_id']
     private_zone = module.params['private_zone']
-    zone_all_records = module.params['zone_all_records']
+    zone_records = module.params['zone_records']
     zone_records_filter = module.params['zone_records_filter']
 
     # Records list from local files
-    local_r53_zone = format_records(zone_all_records)
+    local_r53_zone = format_records(zone_records)
 
     # Get records from aws and format it
     aws_r53_zone = get_zone_records(hosted_zone_id)
@@ -266,6 +265,9 @@ def run_module():
     # Diff between local and aws
     diff_r53_zones = json.loads(mk_diff(
         local_r53_zone, aws_r53_zone, env_list=zone_records_filter))
+
+    if diff_r53_zones['send_to_aws'] != []:
+        result['changed'] = True
 
     # Record list to r53-record.yml
     result['local_json'] = local_r53_zone

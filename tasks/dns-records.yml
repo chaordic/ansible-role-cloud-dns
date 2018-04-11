@@ -10,13 +10,13 @@
 
 - name: var notify unversioned records
   set_fact:
-    notify_message_inversioned: "{{ ansible_user }}: there are unversioned records for zone {{ zone }}\n"
+    notify_message_inversioned: "{{ ansible_user }}: there are unversioned records for zone {{ zone_name }}\n"
     notify_color_warning: red
   when: check_route53_zones.json_diff.manual_changes | length != 0 
 
 - name: var notify updated records
   set_fact:
-    notify_message_changes: "{{ ansible_user }}: there are updated records for zone {{ zone }}\n"
+    notify_message_changes: "{{ ansible_user }}: there are updated records for zone {{ zone_name }}\n"
   when: check_route53_zones.send_to_aws | length != 0 
 
 - name: notify changes
@@ -48,7 +48,7 @@
   with_items:
     - "{{ i_zone.records }}"
 
-- name: notify errros
+- name: notify errors
   include: notify.yml
   vars:
     notify_message: "{{ route53_output | to_nice_json }}"
@@ -58,6 +58,6 @@
 - name: notify successfully completed
   include: notify.yml
   vars:
-    notify_message: "{{ ansible_user }}: rebuild for zone {{ zone }} successfully completed"
+    notify_message: "{{ ansible_user }}: rebuild for zone {{ zone_name }} successfully completed"
     notify_color: green
   when: route53_output.failed is not defined and check_route53_zones.send_to_aws | length != 0

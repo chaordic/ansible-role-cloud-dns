@@ -4,15 +4,17 @@
   hipchat:
     api: https://api.hipchat.com/v2/
     token: "{{ hitchat_access_token }}"
-    room: "{{ hitchat_room }}"
-    msg: "/code {{ notify_message }}"
+    room: "{{ notify_to['room'] }}"
     color: "{{ notify_color }}"
-  when: notifyHipchat == true
+    msg: "/code {{ notify_message }}"
+  ignore_errors: yes
+  when: notify_to['service'] == 'hipchat'
 
 - name: notify Slack
   slack:
     token: "{{ slack_token }}"
-    channel: "{{ slack_channel }}"
+    channel: "{{ notify_to['channel'] }}"
     color: "{{ slack_colors[notify_color] }}"
     msg: "{{ notify_message }}"
-  when: notifySlack == true
+  ignore_errors: yes
+  when: notify_to['service'] == 'slack'
