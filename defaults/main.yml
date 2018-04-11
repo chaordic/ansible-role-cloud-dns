@@ -2,3 +2,13 @@
 env: all
 route53_zones: []
 var_no_log: true
+
+notify_to:
+  service:
+  room:
+  channel:
+
+slack_colors:
+  red: danger
+  green: good
+  yellow: warning

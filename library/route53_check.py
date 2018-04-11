@@ -7,16 +7,14 @@ ANSIBLE_METADATA = {
 }
 
 DOCUMENTATION = '''
+This module compare a route53 zone with vars received in var zone_records and
+return a dict with changed records to be used in route53 module.
+
 args:
-
-**zone** : zone to be managed by Role.
-**env** :
-  all: manage all env dirs.
-  {{ env }}: Manages records only for this env.
-**zone_files**: Root dir of records
-**zone_files_env**: Subdir of records for current env
-**global_vars**: Var dict for substitution
-
+    hosted_zone_id: Hosted zone id
+    private_zone: Default false
+    zone_records: list with all zone records
+    zone_records_filter: list of records names to be changed
 '''
 
 EXAMPLES = '''
@@ -28,81 +26,47 @@ Example Playbook
       connection: local
       gather_facts: true
 
-      vars:
-        var_no_log: true
-        global_vars:
-          GLOBAL_DNS_DOMAIN: domain.com
-          GLOBAL_DNS_INTERNAL_DOMAIN: domain.internal
-          GLOBAL_DNS_DEFAULT_TTL: 60
-          GLOBAL_DNS_WEIGHT_ELB: 30
-          GLOBAL_DNS_WEIGHT_CDN: 70
-
-      pre_tasks:
-
-
-        - name: Find zone files
-          find:
-            paths: "vars/dns/{{ zone }}/"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files
-
-        - name: Find zone files for env
-          find:
-            paths: "vars/dns/{{ zone }}/{{ env }}"
-            recurse: yes
-            patterns: '*.yml'
-          no_log: "{{ var_no_log }} "
-          register: zone_files_env
-
       roles:
         - role: cloud-dns
+          vars:
+            hosted_zone_id: A1BC23DEF45GHI
+            private_zone: false
+            zone_name: example.com.
 
-Example Zone File
-----------------
+            zone_records:
+              - record: wwww.example.com.
+                type: CNAME
+                overwrite: 'yes'
+                state: create
+                ttl: 60
+                value:
+                  - abc.12345678990.us-east-1.elb.amazonaws.com
 
-    hosted_zone_id: A1BC23DEF45GHI
-    private_zone: false
-    route53_zone_records:
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: prod-domain2.com.
+                alias: true
+                identifier: prod-elb
+                weight: GLOBAL_DNS_WEIGHT_ELB
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
 
-      - record: wwww.GLOBAL_DNS_DOMAIN.
-        type: CNAME
-        overwrite: 'yes'
-        state: create
-        ttl: GLOBAL_DNS_DEFAULT_TTL
-        value:
-          - abc.12345678990.us-east-1.elb.amazonaws.com
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: cabcdefghijk1.cloudfront.net.
+                alias: true
+                identifier: prod-cloudfront
+                weight: 100
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: prod-domain2.com.
-        alias: true
-        identifier: prod-elb
-        weight: GLOBAL_DNS_WEIGHT_ELB
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
+            zone_records_filter:
+              - prod.example.com.
 
-      - record: prod.GLOBAL_DNS_DOMAIN.
-        type: A
-        overwrite: 'yes'
-        state: create
-        value: cabcdefghijk1.cloudfront.net.
-        alias: true
-        identifier: prod-cloudfront
-        weight: GLOBAL_DNS_WEIGHT_CDN
-        alias_hosted_zone_id: Z00000000000A
-        alias_evaluate_target_health: false
-
-How to run playbook
-----------------
-    ansible-playbook rebuild-dns.yml \
-            -i 127.0.0.1, \
-            -vvv \
-            -e "env=all" \
-            -e "zone=domain.com" 
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -114,57 +78,24 @@ from deepdiff import DeepDiff
 r53 = boto3.client('route53')
 
 
-def read_files(env, find_output, find_output_env):
-    """ Read files in find_output and  find_output_env to return a dict like this example:
-    {
-    hosted_zone_id: A1BC23DEF45GHI
-    private_zone: false
-    all_records: [...] # List of records
-    env_records: [...]# List of records names to limit what is sent to amazon
-    }
-    """
-    output = {}
-    output['all_records'] = []
-    output['env_records'] = []
-    env_files_list = []
-    for file_env in find_output_env:
-        env_files_list.append(file_env['path'])
-    for file in find_output:
-        with open(file['path'], 'r') as infile:
-            route53_zone_records_list = yaml.load(infile)
-            if 'hosted_zone_id' in route53_zone_records_list:
-                output['hosted_zone_id'] = route53_zone_records_list['hosted_zone_id']
-            if 'private_zone' in route53_zone_records_list:
-                output['private_zone'] = route53_zone_records_list['private_zone']
-            for record in route53_zone_records_list['route53_zone_records']:
-                output['all_records'].append(record)
-                if env != 'all' and file['path'] in env_files_list:
-                    output['env_records'].append(record['record'])
-    return(output)
-
-
-def expand_global_vars(records, global_vars):
-    """Replace strings in records based in global_vars"""
-    records = json.dumps(records)
-    for key, value in global_vars.items():
-        records = records.replace(key, str(value))
-
-    output = json.loads(records)
-    return(output)
-
-
 def format_records(records):
-    """ Create global local_records_names for checks in others functions and
+    """ Create global local_record_names for checks in others functions and
     format the records because after replacing the strings some values may come with incorrect type"""
-    global local_records_names
-    local_records_names = []
+    global local_record_names
+    local_record_names = []
     new_records = []
     for record in records:
         new_record = OrderedDict()
         new_record['record'] = record['record']
-        local_records_names.append(record['record'])
+        local_record_names.append(record['record'])
         new_record['type'] = record['type']
-        new_record['overwrite'] = record['overwrite']
+        if record['overwrite'] == True:
+            new_record['overwrite'] = 'yes'
+        elif record['overwrite'] == False:
+            new_record['overwrite'] = 'no'
+        else:
+            new_record['overwrite'] = record['overwrite']
+
         new_record['state'] = record['state']
         if 'identifier' in record.keys():
             new_record['identifier'] = record['identifier']
@@ -176,12 +107,22 @@ def format_records(records):
         if 'health_check' in record.keys():
             new_record['health_check'] = record['health_check']
         if 'alias' in record.keys():
-            new_record['value'] = record['value']
+            if isinstance(record['value'], list) and len(record['value']) == 1:
+                new_record['value'] = record['value'][0]
+            if isinstance(record['value'], list):
+                new_record['value'] = record['value']
+            else:
+                new_record['value'] = record['value']
             new_record['alias'] = record['alias']
             new_record['alias_hosted_zone_id'] = record['alias_hosted_zone_id']
             new_record['alias_evaluate_target_health'] = record['alias_evaluate_target_health']
         else:
-            new_record['value'] = sorted(record['value'])
+            if isinstance(record['value'], list) and len(record['value']) == 1:
+                new_record['value'] = record['value'][0]
+            elif isinstance(record['value'], list):
+                new_record['value'] = record['value']
+            else:
+                new_record['value'] = record['value']
         new_records.append(new_record)
     new_records = sorted(new_records)
     return(new_records)
@@ -214,7 +155,8 @@ def aws_format_records(records):
         if 'ResourceRecords' in record.keys():
             for ResourceRecords in record['ResourceRecords']:
                 aws_record['value'].append(ResourceRecords['Value'])
-                aws_record['value'] = sorted(aws_record['value'])
+        if len(aws_record['value']) == 1:
+            aws_record['value'] = aws_record['value'][0]
         elif 'AliasTarget' in record.keys():
             aws_record['value'] = record['AliasTarget']['DNSName']
             aws_record['alias'] = True
@@ -246,15 +188,15 @@ def get_zone_records(zone_id, next_record=None):
     return zone_records
 
 
-def mk_diff(env, var_a, var_b, env_list=None):
+def mk_diff(var_a, var_b, env_list=None):
     output = {}
     output['diff'] = {}
     output['diff']['changes'] = []
     output['diff']['new_records'] = []
     output['diff']['manual_changes'] = []
     output['send_to_aws'] = []
-    change_new = []
-    change_old = []
+    change_after = []
+    change_before = []
     diff_vars = DeepDiff(var_a, var_b, ignore_order=True)
     if 'iterable_item_added' in diff_vars.keys():
         for record in diff_vars['iterable_item_added']:
@@ -262,9 +204,9 @@ def mk_diff(env, var_a, var_b, env_list=None):
             r53_record = dict(OrderedDict(
                 diff_vars['iterable_item_added'][changeid]))
 
-            if r53_record['record'] in local_records_names:
-                if env == 'all' or r53_record['record'] in env_list:
-                    change_old.append(r53_record)
+            if r53_record['record'] in local_record_names:
+                if env_list == [] or r53_record['record'] in env_list:
+                    change_before.append(r53_record)
             else:
                 output['diff']['manual_changes'].append(r53_record)
     if 'iterable_item_removed' in diff_vars.keys():
@@ -273,16 +215,16 @@ def mk_diff(env, var_a, var_b, env_list=None):
             r53_record = dict(OrderedDict(
                 diff_vars['iterable_item_removed'][changeid]))
             if r53_record['record'] in aws_records_names:
-                if env == 'all' or r53_record['record'] in env_list:
-                    change_new.append(r53_record)
+                if env_list == [] or r53_record['record'] in env_list:
+                    change_after.append(r53_record)
                     output['send_to_aws'].append(r53_record)
             else:
-                if env == 'all' or r53_record['record'] in env_list:
+                if env_list == [] or r53_record['record'] in env_list:
                     output['diff']['new_records'].append(r53_record)
                     output['send_to_aws'].append(r53_record)
-    if change_new != [] or change_old != []:
-        output['diff']['changes'].append({'after': change_new})
-        output['diff']['changes'].append({'before': change_old})
+    if change_after != [] or change_before != []:
+        output['diff']['changes'].append({'after': change_after})
+        output['diff']['changes'].append({'before': change_before})
     output = json.dumps(output)
     return(output)
 
@@ -290,10 +232,10 @@ def mk_diff(env, var_a, var_b, env_list=None):
 def run_module():
 
     module_args = dict(
-        env=dict(type='str', required=True),
-        zone_files=dict(type='list', required=True),
-        zone_files_env=dict(type='list', Default=[]),
-        global_vars=dict(type='dict', required=True)
+        hosted_zone_id=dict(type='str', required=True),
+        private_zone=dict(type='bool', Default=False),
+        zone_records=dict(type='list', required=True),
+        zone_records_filter=dict(type='list', Default=[])
     )
 
     result = dict(
@@ -308,31 +250,24 @@ def run_module():
         supports_check_mode=True
     )
 
-    env = module.params['env']
-    zone_files = module.params['zone_files']
-    zone_files_env = module.params['zone_files_env']
-    global_vars = module.params['global_vars']
-
-    # Records list for all records
-    from_files_records = read_files(env, zone_files, zone_files_env)
-    from_files_records = expand_global_vars(from_files_records, global_vars)
+    hosted_zone_id = module.params['hosted_zone_id']
+    private_zone = module.params['private_zone']
+    zone_records = module.params['zone_records']
+    zone_records_filter = module.params['zone_records_filter']
 
     # Records list from local files
-    local_r53_zone = format_records(from_files_records['all_records'])
+    local_r53_zone = format_records(zone_records)
 
-    # private_zone
-    private_zone = from_files_records['private_zone']
-
-    # hosted_zone_id
-    hosted_zone_id = from_files_records['hosted_zone_id']
-
-    # Get records from aws and format it 
-    aws_r53_zone= get_zone_records(hosted_zone_id)
+    # Get records from aws and format it
+    aws_r53_zone = get_zone_records(hosted_zone_id)
     aws_r53_zone = aws_format_records(aws_r53_zone)
 
     # Diff between local and aws
     diff_r53_zones = json.loads(mk_diff(
-        env, local_r53_zone, aws_r53_zone, env_list=from_files_records['env_records']))
+        local_r53_zone, aws_r53_zone, env_list=zone_records_filter))
+
+    if diff_r53_zones['send_to_aws'] != []:
+        result['changed'] = True
 
     # Record list to r53-record.yml
     result['local_json'] = local_r53_zone

@@ -1,19 +1,35 @@
 cloud-dns
 =========
 
-Role to manage Route53 registers.
+What this role do?
+  * Compare all local dns records wich aws and generate a var wich
+    * changed records
+    * Diferences between AWS and local records
+  * Notifies slack or hipchat of changes
+  * Apply chaged records
+  * Notifies fails or sucessfuly rebuilds
 
 Requirements
 ------------
 
-ansible 2.4 or newer.
+ansible 2.3 or newer.
 
 Variables
 --------------
 ```yaml
-zone: domain.com # zone to be managed by Role.
-env: all # Can be any subdirectory in the root of the domain directory
-global_vars: { GLOBAL_DNS_DEFAULT_TTL: 60 } # Var dict for substitution
+# route53_check vars
+hosted_zone_id: Hosted zone id
+private_zone: default false
+zone: zone name
+zone_all_records: list with all zone records
+zone_records_filter: list of records names to be changed
+
+# Notify vars
+notify_to:
+  service: slack/hipchat
+  room: room name to hipchat
+  channel: channel name to slack
+
 ```
 Dependencies
 ------------
@@ -24,82 +40,54 @@ Dependencies
 Example Playbook
 ----------------
 ```yaml
-- name: Rebuild DNS
-  hosts: 127.0.0.1
-  connection: local
-  gather_facts: true
-
-  vars:
-    var_no_log: true
-    global_vars:
-      GLOBAL_DNS_DOMAIN: domain.com
-      GLOBAL_DNS_INTERNAL_DOMAIN: domain.internal
-      GLOBAL_DNS_DEFAULT_TTL: 60
-      GLOBAL_DNS_WEIGHT_ELB: 30
-      GLOBAL_DNS_WEIGHT_CDN: 70
-      
-  pre_tasks:
-    - name: Find zone files
-      find:
-        paths: "vars/dns/{{ zone }}/"
-        recurse: yes
-        patterns: '*.yml'
-      no_log: "{{ var_no_log }} "
-      register: zone_files
-
-    - name: Find zone files for env
-      find:
-        paths: "vars/dns/{{ zone }}/{{ env }}"
-        recurse: yes
-        patterns: '*.yml'
-      no_log: "{{ var_no_log }} "
-      register: zone_files_env
-
-  roles:
-    - role: cloud-dns
-```
-Example Zone File
+Example Playbook
 ----------------
-```yaml
-route53_zone_records:
-  - record: wwww.GLOBAL_DNS_DOMAIN.
-    type: CNAME
-    overwrite: 'yes'
-    state: create
-    ttl: GLOBAL_DNS_DEFAULT_TTL
-    value:
-      - abc.12345678990.us-east-1.elb.amazonaws.com
-      
-  - record: prod.GLOBAL_DNS_DOMAIN.
-    type: A
-    overwrite: 'yes'
-    state: create
-    value: prod-domain2.com.
-    alias: true
-    identifier: prod-elb
-    weight: GLOBAL_DNS_WEIGHT_ELB
-    alias_hosted_zone_id: Z00000000000A
-    alias_evaluate_target_health: false
 
-  - record: prod.GLOBAL_DNS_DOMAIN.
-    type: A
-    overwrite: 'yes'
-    state: create
-    value: cabcdefghijk1.cloudfront.net.
-    alias: true
-    identifier: prod-cloudfront
-    weight: GLOBAL_DNS_WEIGHT_CDN
-    alias_hosted_zone_id: Z00000000000A
-    alias_evaluate_target_health: false
-```
-How to run playbook
-----------------
-```bash
-ansible-playbook rebuild-dns.yml \
-        -i 127.0.0.1, \
-        -vvv \
-        -e "env=all" \
-        -e "zone=domain.com" 
+    - name: Rebuild DNS
+      hosts: 127.0.0.1
+      connection: local
+      gather_facts: true
+
+      roles:
+        - role: cloud-dns
+          vars:
+            hosted_zone_id: A1BC23DEF45GHI
+            private_zone: false
+            zone: example.com.
+
+            zone_all_records:
+              - record: wwww.example.com.
+                type: CNAME
+                overwrite: 'yes'
+                state: create
+                ttl: 60
+                value:
+                  - abc.12345678990.us-east-1.elb.amazonaws.com
+
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: prod-domain2.com.
+                alias: true
+                identifier: prod-elb
+                weight: GLOBAL_DNS_WEIGHT_ELB
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
+
+              - record: prod.example.com.
+                type: A
+                overwrite: 'yes'
+                state: create
+                value: cabcdefghijk1.cloudfront.net.
+                alias: true
+                identifier: prod-cloudfront
+                weight: 100
+                alias_hosted_zone_id: Z00000000000A
+                alias_evaluate_target_health: false
+
+            zone_records_filter:
+              - prod.example.com.
 ```
 License
 -------

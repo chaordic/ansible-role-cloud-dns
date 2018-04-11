@@ -1,0 +1,20 @@
+---
+
+- name: notify Hipchat
+  hipchat:
+    api: https://api.hipchat.com/v2/
+    token: "{{ hitchat_access_token }}"
+    room: "{{ notify_to['room'] }}"
+    color: "{{ notify_color }}"
+    msg: "/code {{ notify_message }}"
+  ignore_errors: yes
+  when: notify_to['service'] == 'hipchat'
+
+- name: notify Slack
+  slack:
+    token: "{{ slack_token }}"
+    channel: "{{ notify_to['channel'] }}"
+    color: "{{ slack_colors[notify_color] }}"
+    msg: "{{ notify_message }}"
+  ignore_errors: yes
+  when: notify_to['service'] == 'slack'
